@@ -7,19 +7,19 @@ from sklearn.preprocessing import StandardScaler
 import matplotlib.pyplot as plt
 
 # Streamlit Page Configuration
-st.set_page_config(page_title="Diamond Hands Predictor", page_icon="", layout="centered")
+st.set_page_config(page_title="Support and Resistance Levels", page_icon="", layout="centered")
 
 # Title and Header
-st.title("Diamond Hands Predictor")
+st.title("GME Trading Tool")
 st.image("gamestop_logo.png")
 st.write("""
     ## Will GameStop go to the Moon or Crash Down?  
-    Enter the current price and see if your **Diamond Hands** are worth it!
+    Choose a time frame depending on your investment strategy. Enter the current price and see if your **Diamond Hands** are worth it!
 """)
 
 # Fetch data from yfinance
 ticker = yf.Ticker("GME")
-period = st.selectbox("Select Time Frame", ["5d", "1mo", "3mo", "6mo", "1y", "2y", "5y", "10y", "20y", "max"])
+period = st.selectbox("Select Time Frame.", ["5d", "1mo", "3mo", "6mo", "1y", "2y", "5y", "10y", "20y", "max"])
 data = ticker.history(period=period)
 
 # Define the features used for K-means clustering
@@ -32,7 +32,7 @@ scaler = StandardScaler()
 scaled_features = scaler.fit_transform(data[features])
 
 # Define the K-means model
-kmeans = KMeans(n_clusters=3, random_state=42)
+kmeans = KMeans(n_clusters=3, random_state=42,n_init=10)
 
 # Fit the K-means model to the scaled data
 kmeans.fit(scaled_features)
@@ -67,22 +67,28 @@ st.pyplot(fig)
 # Collecting User Input
 current_price = st.number_input("Current Price ($)", min_value=0.0, step=0.01, value=data['Close'].iloc[-1])
 
-# Determine the direction trend
-def determine_trend(current_price, cluster_centers):
-    max_center = max(cluster_centers[:, 0])  # Find the highest cluster center
+def determine_trend(current_price, cluster_centers, tolerance=0.01):
+    max_center = max(cluster_centers[:, 0])  
+    min_center = min(cluster_centers[:, 0])  
     closest_center = min(cluster_centers[:, 0], key=lambda x: abs(x - current_price))
     
     if current_price > max_center:
-        return "MOONTIME!!! ", "roaring_kitty.gif"  # Replace with your fun GIF path
+        return "MOONTIME!!!", "roaring_kitty.gif"  # Replace with your fun GIF path
+    elif current_price < min_center - 1:
+        return "Risky times! Price is well below the minimum support line.", "risk.gif"
+    elif abs(current_price - closest_center) <= tolerance:
+        return "Currently at a cluster center. Monitor closely.", "monitor.gif"
     elif current_price > closest_center:
-        return "Heading towards support. Manage risk.", "diamond_hands.gif"  
+        return "Near support. Manage risk.", "diamond_hands.gif"
     elif current_price < closest_center:
-        return "Heading towards resistance. Can it break through?", "peepo-rocket.gif" 
+        return "Near resistance. Can it break through?", "peepo-rocket.gif"
     else:
-        return "Currently at a cluster center. Monitor closely.", None
+        return "Currently at a cluster center. Monitor closely.", "monitor.gif"
 
 if st.button("Analyze Trend"):
     trend, gif_path = determine_trend(current_price, original_cluster_centers)
     st.write(f"### Trend: {trend}")
     if gif_path:
         st.image(gif_path)
+
+
